@@ -1,0 +1,29 @@
+{% extends "main.html" %}
+
+{% block extrahead %}
+  {{ super() }}
+  <link rel="preload" as="image" href="{{ 'assets/images/cover.png' | url }}">
+{% endblock %}
+
+{% block hero %}
+<section class="cover" aria-label="Космический самурай-программист">
+  <img class="cover__image" src="{{ 'assets/images/cover.png' | url }}"
+       alt="Бородатый программист в очках, красных самурайских доспехах пишет код за MacBook на фоне космоса."
+       width="1672" height="941" fetchpriority="high">
+  <aside class="cover__assignment">
+    <p>{{ page.meta.assignment_intro | e }}</p>
+    <p><strong>{{ page.meta.assignment_title | e }}</strong></p>
+  </aside>
+  <a class="cover__scroll" href="#documentation" aria-label="Перейти к документации">
+    <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 4v15m-6-6 6 6 6-6"/></svg>
+  </a>
+</section>
+{% endblock %}
+
+{% block container %}
+<div class="md-content home-content" data-md-component="content" id="documentation">
+  <article class="md-content__inner md-typeset">
+    {{ page.content }}
+  </article>
+</div>
+{% endblock %}

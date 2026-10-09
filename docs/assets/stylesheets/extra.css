@@ -1,0 +1,231 @@
+/* Шрифты и прокрутка */
+:root {
+  --md-text-font: -apple-system, BlinkMacSystemFont, "Segoe UI", Arial, sans-serif;
+  --md-code-font: Consolas, monospace;
+}
+
+html {
+  scroll-behavior: smooth;
+  scroll-padding-top: 5rem;
+}
+
+/* Основные блоки */
+body,
+.md-main,
+.md-header,
+.md-footer,
+.md-footer-meta {
+  background: #000;
+  color: #fff;
+}
+
+.md-header__topic {
+  font-weight: 650;
+}
+
+.md-grid {
+  max-width: 1200px;
+}
+
+.md-main__inner {
+  margin-top: 0;
+}
+
+/* Обложка */
+.cover {
+  position: relative;
+  height: calc(100svh - 48px);
+  min-height: 360px;
+  max-height: 1200px;
+  overflow: hidden;
+  background: #34191d;
+}
+
+.cover__image {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: 56% 50%;
+}
+
+/* Кнопка прокрутки */
+.cover__scroll {
+  position: absolute;
+  bottom: 24px;
+  left: 50%;
+  display: grid;
+  place-items: center;
+  width: 46px;
+  height: 46px;
+  transform: translateX(-50%);
+  border: 1px solid #ffffff66;
+  border-radius: 50%;
+  background: #29111588;
+  backdrop-filter: blur(8px);
+  color: #fff;
+  transition: background 0.2s;
+}
+
+.cover__scroll:hover {
+  background: #b83e3e;
+}
+
+.cover__scroll:focus-visible {
+  outline: 3px solid #fff;
+  outline-offset: 5px;
+}
+
+.cover__scroll svg {
+  width: 24px;
+  height: 24px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.7;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+/* Плашка практикума */
+.cover__assignment {
+  position: absolute;
+  right: max(32px, calc((100% - 1080px) / 2));
+  bottom: 94px;
+  width: min(465px, calc(100% - 48px));
+  padding: 20px 24px;
+  border-left: 3px solid #888;
+  border-radius: 0 12px 12px 0;
+  background: rgba(0, 0, 0, 0.8);
+  backdrop-filter: blur(12px);
+  box-shadow: 0 8px 30px #0003;
+  color: #fff;
+  font-size: 14px;
+  line-height: 1.65;
+}
+
+.cover__assignment p {
+  margin: 0;
+}
+
+.cover__assignment p + p {
+  margin-top: 10px;
+}
+
+.cover__assignment strong {
+  font-weight: 650;
+}
+
+/* Содержимое страницы */
+.home-content {
+  width: 100%;
+  min-width: 0;
+  padding: 76px 32px 100px;
+}
+
+.home-content .md-content__inner {
+  max-width: 1080px;
+  margin: 0 auto;
+}
+
+.home-content h1,
+.home-content h2 {
+  color: #fff;
+}
+
+.home-content h1 {
+  margin: 0 0 22px;
+  font-size: clamp(36px, 4.3vw, 58px);
+  font-weight: 700;
+  line-height: 1.15;
+  letter-spacing: -0.035em;
+}
+
+.home-content h2 {
+  margin: 54px 0 20px;
+  font-size: 30px;
+  font-weight: 600;
+  letter-spacing: -0.025em;
+}
+
+.home-content p {
+  color: #ccc;
+  font-size: 18px;
+  line-height: 1.8;
+}
+
+.home-content h1 + p {
+  max-width: 760px;
+  margin: 0 0 66px;
+  font-size: 21px;
+  line-height: 1.7;
+}
+
+/* Карточки возможностей */
+.home-content ul {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 18px;
+  margin: 28px 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.home-content ul li {
+  margin: 0;
+  padding: 30px 24px;
+  border-top: 2px solid #444;
+  border-radius: 0 0 10px 10px;
+  background: #151515;
+  color: #fff;
+  font-size: 20px;
+  font-weight: 600;
+}
+
+/* Появление при прокрутке */
+.reveal-ready {
+  opacity: 0;
+  transform: translateY(22px);
+  transition: opacity 0.7s ease, transform 0.7s ease;
+}
+
+.reveal-ready.is-visible {
+  opacity: 1;
+  transform: none;
+}
+
+/* Мобильная версия */
+@media (max-width: 760px) {
+  .cover {
+    min-height: 420px;
+  }
+
+  .cover__image {
+    object-position: 58% center;
+  }
+
+  .cover__assignment {
+    right: 24px;
+    bottom: 86px;
+    padding: 16px 18px;
+    font-size: 13px;
+  }
+
+  .home-content {
+    padding: 42px 24px 65px;
+  }
+
+  .home-content h1 + p {
+    margin-bottom: 40px;
+    font-size: 19px;
+  }
+
+  .home-content ul {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 12px;
+  }
+
+  .home-content ul li {
+    padding: 22px 16px;
+    font-size: 18px;
+  }
+}
