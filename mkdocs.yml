@@ -1,14 +1,14 @@
-site_name: 1st Task;)
-site_description: Практикум 1. Настройка среды Docs as Code
+site_name: АС «УВК» · Документация
+site_description: Учет и выдача книг с возрастной фильтрацией и ML-рекомендациями
 theme:
   name: material
   custom_dir: overrides
   language: ru
   font: false
   palette:
-    scheme: slate
-    primary:  black
-    accent: white
+    scheme: default
+    primary: white
+    accent: indigo
   icon:
     logo: material/book-open-page-variant
   features:
@@ -17,17 +17,27 @@ theme:
     - content.code.copy
 nav:
   - Главная: index.md
+  - Проект:
+      - Описание: project/overview.md
+      - Требования: project/requirements.md
+      - Диаграммы: project/diagrams.md
 plugins:
   - search:
       lang: ru
 markdown_extensions:
   - attr_list
   - md_in_html
-  - pymdownx.superfences
+  - pymdownx.superfences:
+      custom_fences:
+        - name: mermaid
+          class: uml-diagram
+          format: !!python/name:pymdownx.superfences.fence_code_format
 extra_css:
   - assets/stylesheets/extra.css
 extra_javascript:
+  - assets/vendor/mermaid-11.17.2.min.js
   - assets/javascripts/reveal.js
+  - assets/javascripts/diagrams.js
 extra:
   generator: false
-copyright: Основы технического документирования · Практикум 1
+copyright: Основы технического документирования · Практикумы 1–2
