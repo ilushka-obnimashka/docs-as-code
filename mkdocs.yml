@@ -1,5 +1,7 @@
 site_name: АС «УВК» · Документация
 site_description: Учет и выдача книг с возрастной фильтрацией и ML-рекомендациями
+watch:
+  - overrides
 theme:
   name: material
   custom_dir: overrides

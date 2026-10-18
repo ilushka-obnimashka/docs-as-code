@@ -157,6 +157,59 @@ body,
   line-height: 1.7;
 }
 
+.home-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 220px;
+  align-items: start;
+  gap: 48px;
+  max-width: 1320px;
+  margin: 0 auto;
+}
+
+.home-layout .md-content__inner {
+  min-width: 0;
+  margin: 0;
+}
+
+.home-sections {
+  position: sticky;
+  top: 80px;
+  font-size: 16px;
+}
+
+.home-sections details {
+  border: 1px solid #dce1e8;
+  border-radius: 6px;
+}
+
+.home-sections summary {
+  padding: 14px 16px;
+  color: #202532;
+  font-weight: 650;
+  cursor: pointer;
+}
+
+.home-sections nav {
+  display: flex;
+  flex-direction: column;
+  padding: 0 8px 8px;
+}
+
+.home-sections a {
+  padding: 10px 8px;
+  color: #4051b5;
+}
+
+.home-sections a:hover {
+  background: #f1f3f8;
+}
+
+.home-sections a:focus-visible,
+.home-sections summary:focus-visible {
+  outline: 2px solid #4051b5;
+  outline-offset: 2px;
+}
+
 /* Диаграммы сохраняют читаемый масштаб вместо сжатия до ширины статьи. */
 .diagram-viewer {
   margin: 1.5rem 0;
@@ -233,6 +286,16 @@ body,
 
 /* Мобильная версия */
 @media (max-width: 760px) {
+  .home-layout {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 28px;
+  }
+
+  .home-sections {
+    position: static;
+    order: -1;
+  }
+
   .cover {
     min-height: 420px;
   }

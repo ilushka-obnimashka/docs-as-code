@@ -22,8 +22,20 @@
 
 {% block container %}
 <div class="md-content home-content" data-md-component="content" id="documentation">
-  <article class="md-content__inner md-typeset">
-    {{ page.content }}
-  </article>
+  <div class="home-layout">
+    <article class="md-content__inner md-typeset">
+      {{ page.content }}
+    </article>
+    <aside class="home-sections">
+      <details>
+        <summary>Разделы</summary>
+        <nav aria-label="Разделы документации">
+          <a href="{{ 'project/overview/' | url }}">Описание проекта</a>
+          <a href="{{ 'project/requirements/' | url }}">Требования</a>
+          <a href="{{ 'project/diagrams/' | url }}">Диаграммы</a>
+        </nav>
+      </details>
+    </aside>
+  </div>
 </div>
 {% endblock %}
