@@ -1,0 +1,580 @@
+openapi: 3.0.3
+info:
+  title: АС «УВК» — библиотечная система с ML-рекомендациями
+  version: 1.0.0
+  description: |
+    API библиотечной системы: проверки состояния, поиск книг, добавление людей
+    и рекомендации. Это учебное описание, работающего сервера нет.
+    Роли: reader — читатель, librarian — библиотекарь, admin — администратор.
+    Кроме проверок состояния, для запросов нужен токен пользователя.
+    Вход в систему и получение токена в этой работе не описываем.
+    Возраст читателя берем из даты рождения в его карточке.
+servers:
+  - url: https://example.com/api/v1
+    description: Условный сервер (не предназначен для реальных запросов)
+tags:
+  - name: Health
+    description: Готовность приложения и ML-модуля
+  - name: Catalog
+    description: Книги и их экземпляры
+  - name: Readers
+    description: Карточки читателей
+  - name: Staff
+    description: Карточки администраторов и библиотекарей
+  - name: Recommendations
+    description: Подбор книг по интересам
+security:
+  - BearerAuth: []
+paths:
+  /health:
+    get:
+      tags: [Health]
+      operationId: getHealth
+      summary: Проверить готовность основного приложения
+      description: |
+        Проверяет, работают ли приложение и каталог. Вход не нужен.
+        Если модель рекомендаций не работает, обычный поиск остается доступным.
+        Если само приложение выключено, оно не сможет вернуть ответ.
+      security: []
+      responses:
+        '200':
+          description: Приложение и каталог готовы к работе
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HealthStatus'
+              example: {status: ok, component: application}
+        '503':
+          description: Система временно не готова к работе, например недоступен каталог
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example: {code: APPLICATION_NOT_READY, message: Каталог временно недоступен}
+  /health/ml:
+    get:
+      tags: [Health]
+      operationId: getMlHealth
+      summary: Проверить готовность ML-модуля
+      description: |
+        Проверяет, готова ли модель рекомендаций. Вход не нужен.
+        Если модель не работает или не ответила за 5 секунд, возвращается 503.
+      security: []
+      responses:
+        '200':
+          description: Модель загружена и готова к ранжированию
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HealthStatus'
+              example: {status: ok, component: ml}
+        '503':
+          $ref: '#/components/responses/MlUnavailable'
+  /books:
+    get:
+      tags: [Catalog]
+      operationId: searchBooks
+      summary: Найти книги и узнать их наличие
+      description: |
+        Доступно читателю, библиотекарю и администратору.
+        Можно указать часть названия (title), автора (author) или оба поля.
+        Регистр букв не важен. Без фильтров возвращается список книг.
+        Читатель видит только доступные по возрасту книги, сотрудники — весь каталог.
+        Если дата рождения читателя ошибочна или не указана, возвращается 400.
+        availableCopies показывает количество экземпляров в наличии на момент запроса.
+        Если ничего не найдено, возвращается 200 с пустым items.
+        Длинный список выдается частями с помощью limit и offset.
+      parameters:
+        - name: title
+          in: query
+          description: Часть названия книги; пробельное значение недопустимо
+          schema: {type: string, minLength: 1, maxLength: 200, pattern: '\S'}
+          example: Мастер
+        - name: author
+          in: query
+          description: Часть имени автора; пробельное значение недопустимо
+          schema: {type: string, minLength: 1, maxLength: 200, pattern: '\S'}
+          example: Булгаков
+        - $ref: '#/components/parameters/Limit'
+        - $ref: '#/components/parameters/Offset'
+      responses:
+        '200':
+          description: Страница каталога; items может быть пустым
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BookPage'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '503':
+          $ref: '#/components/responses/CatalogUnavailable'
+  /books/{bookId}:
+    get:
+      tags: [Catalog]
+      operationId: getBook
+      summary: Получить карточку книги и количество доступных экземпляров
+      description: |
+        bookId — ID книги, а не штрихкод экземпляра.
+        Читателю возвращаются только доступные по возрасту книги, иначе — 404.
+        Если все экземпляры выданы, сотрудник получит 200 и availableCopies=0,
+        а читатель — 404. При выдаче наличие книги проверяется заново.
+      parameters:
+        - $ref: '#/components/parameters/BookId'
+      responses:
+        '200':
+          description: Карточка книги
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Book'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/BookNotFound'
+        '503':
+          $ref: '#/components/responses/CatalogUnavailable'
+  /books/{bookId}/copies:
+    get:
+      tags: [Catalog]
+      operationId: getBookCopies
+      summary: Получить экземпляры книги и их штрихкоды
+      description: |
+        Только для библиотекаря и администратора. У книги может быть несколько
+        экземпляров с разными штрихкодами. Возвращаются и доступные, и выданные.
+        Данные читателей не показываются, возраст сотрудника не учитывается.
+        Если книга есть, но экземпляров нет, возвращается 200 с пустым items.
+      parameters:
+        - $ref: '#/components/parameters/BookId'
+        - $ref: '#/components/parameters/Limit'
+        - $ref: '#/components/parameters/Offset'
+      responses:
+        '200':
+          description: Страница физических экземпляров
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CopyPage'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/BookNotFound'
+        '503':
+          $ref: '#/components/responses/CatalogUnavailable'
+  /readers:
+    post:
+      tags: [Readers]
+      operationId: createReader
+      summary: Добавить карточку читателя
+      description: |
+        Только для администратора. Нужно передать ФИО, дату рождения и штрихкод билета.
+        Дата рождения не может быть в будущем, а штрихкод не должен повторяться.
+        Ручка сохраняет данные читателя. Настройку пароля и вход здесь не описываем.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ReaderCreate'
+      responses:
+        '201':
+          description: Карточка читателя создана
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Reader'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '409':
+          description: Штрихкод читательского билета уже используется
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example: {code: TICKET_BARCODE_EXISTS, message: Читательский билет уже зарегистрирован}
+        '500':
+          $ref: '#/components/responses/InternalError'
+  /staff:
+    post:
+      tags: [Staff]
+      operationId: createStaff
+      summary: Добавить администратора или библиотекаря
+      description: |
+        Только для администратора. Нужно передать ФИО и роль:
+        admin — администратор, librarian — библиотекарь. Одинаковые ФИО разрешены.
+        Ручка сохраняет данные сотрудника, но не выдает пароль или токен.
+        Права пользователя, который отправил запрос, не меняются.
+        Первого администратора добавляют отдельно, не через эту ручку.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/StaffCreate'
+            examples:
+              librarian:
+                summary: Библиотекарь
+                value: {fullName: Анна Смирнова, role: librarian}
+              admin:
+                summary: Администратор
+                value: {fullName: Илья Трушкин, role: admin}
+      responses:
+        '201':
+          description: Карточка сотрудника создана
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - $ref: '#/components/schemas/Administrator'
+                  - $ref: '#/components/schemas/Librarian'
+                discriminator:
+                  propertyName: role
+                  mapping:
+                    admin: '#/components/schemas/Administrator'
+                    librarian: '#/components/schemas/Librarian'
+              example: {id: 7, fullName: Анна Смирнова, role: librarian}
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '500':
+          $ref: '#/components/responses/InternalError'
+  /recommendations:
+    post:
+      tags: [Recommendations]
+      operationId: recommendBooks
+      summary: Подобрать до пяти книг по интересам читателя
+      description: |
+        Только для читателя. Нужно передать непустой текст интересов.
+        Система узнает читателя по токену и берет дату рождения из его карточки.
+        Сначала выбирает доступные по возрасту экземпляры, затем модель сравнивает
+        интересы с описаниями книг. ФИО и дата рождения модели не передаются.
+        Ответ — до пяти разных книг, сначала с большей оценкой score.
+        При равных оценках первым идет экземпляр с меньшим editionId.
+        Если у книги несколько экземпляров, остается первый в этом порядке.
+        Нулевые оценки не включаются. Если книг или совпадений нет, ответ — 200
+        с пустым списком; поле reason поясняет причину.
+        Ошибка модели или ожидание дольше 5 секунд дают 503. Неверные ID,
+        повторные ID, нечисловые оценки и оценки вне [0,1] также дают 503.
+        При отказе модели предлагается обычный поиск с проверкой возраста.
+        Рекомендации не бронируют книги. История подбора не сохраняется.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RecommendationRequest'
+      responses:
+        '200':
+          description: Подбор завершен; recommendations может быть пустым
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RecommendationResult'
+              examples:
+                matched:
+                  summary: Найдена подходящая книга
+                  value:
+                    reason: matched
+                    recommendations:
+                      - book: {id: 42, title: Мастер и Маргарита, author: Михаил Булгаков, ageRestriction: 16, availableCopies: 1}
+                        editionId: 101
+                        score: 0.82
+                        position: 1
+                noCandidates:
+                  summary: Нет доступных по возрасту экземпляров; модель не вызывается
+                  value: {reason: no_candidates, recommendations: []}
+                noMatches:
+                  summary: Нет положительных оценок; предложить изменить интересы
+                  value: {reason: no_matches, recommendations: []}
+        '400':
+          description: Пустые интересы, некорректный JSON или отсутствующая/некорректная дата рождения
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              examples:
+                emptyInterests:
+                  value: {code: INVALID_INTERESTS, message: Укажите непустой текст интересов}
+                invalidBirthDate:
+                  value: {code: INVALID_BIRTH_DATE, message: Исправьте дату рождения в карточке читателя}
+                invalidRequest:
+                  value: {code: INVALID_REQUEST, message: Проверьте структуру JSON и обязательные поля}
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '503':
+          description: Каталог или модель недоступны; предложить обычный поиск при отказе модели
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              examples:
+                unavailable:
+                  value: {code: ML_UNAVAILABLE, message: Рекомендации недоступны. Используйте обычный поиск}
+                timeout:
+                  value: {code: ML_TIMEOUT, message: Модель не ответила за 5 секунд. Используйте обычный поиск}
+                invalidResponse:
+                  value: {code: ML_INVALID_RESPONSE, message: Некорректный ответ модели. Используйте обычный поиск}
+                catalog:
+                  value: {code: CATALOG_UNAVAILABLE, message: Каталог временно недоступен}
+        '500':
+          $ref: '#/components/responses/InternalError'
+components:
+  securitySchemes:
+    BearerAuth:
+      type: http
+      scheme: bearer
+      description: Токен пользователя. Вход и получение токена в этой работе не описываем
+  parameters:
+    BookId:
+      name: bookId
+      in: path
+      required: true
+      description: ID книги; у экземпляра это поле называется catalogRecordId
+      schema: {type: integer, minimum: 1}
+      example: 42
+    Limit:
+      name: limit
+      in: query
+      description: Сколько записей вернуть
+      schema: {type: integer, minimum: 1, maximum: 100, default: 20}
+      example: 20
+    Offset:
+      name: offset
+      in: query
+      description: Сколько записей пропустить. Порядок списка — по возрастанию id
+      schema: {type: integer, minimum: 0, default: 0}
+      example: 0
+  schemas:
+    Error:
+      type: object
+      required: [code, message]
+      description: Общий формат ошибки. code — причина для программы, message — пояснение для человека
+      properties:
+        code:
+          type: string
+          enum: [INVALID_REQUEST, INVALID_INTERESTS, INVALID_BIRTH_DATE, UNAUTHORIZED, FORBIDDEN, BOOK_NOT_FOUND, TICKET_BARCODE_EXISTS, APPLICATION_NOT_READY, CATALOG_UNAVAILABLE, ML_UNAVAILABLE, ML_TIMEOUT, ML_INVALID_RESPONSE, INTERNAL_ERROR]
+          example: BOOK_NOT_FOUND
+        message:
+          type: string
+          example: Книга не найдена или недоступна читателю
+    HealthStatus:
+      type: object
+      required: [status, component]
+      properties:
+        status: {type: string, enum: [ok]}
+        component: {type: string, enum: [application, ml]}
+    Book:
+      type: object
+      required: [id, title, author, ageRestriction, availableCopies]
+      description: Данные книги. У нее может быть несколько экземпляров, у каждого свой штрихкод
+      properties:
+        id: {type: integer, minimum: 1, example: 42}
+        title: {type: string, example: Мастер и Маргарита}
+        author: {type: string, example: Михаил Булгаков}
+        ageRestriction: {type: integer, enum: [0, 6, 12, 16, 18], example: 16}
+        availableCopies: {type: integer, minimum: 0, example: 1}
+    BookCopy:
+      type: object
+      required: [id, catalogRecordId, barcode, status]
+      properties:
+        id: {type: integer, minimum: 1, example: 101}
+        catalogRecordId: {type: integer, minimum: 1, example: 42}
+        barcode: {type: string, example: LIB-000101}
+        status:
+          type: string
+          enum: [available, issued]
+          description: available — в фонде; issued — выдано
+          example: available
+    BookPage:
+      type: object
+      required: [items, total, limit, offset]
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/Book'
+        total: {type: integer, minimum: 0, description: Общее число найденных книг, example: 1}
+        limit: {type: integer, minimum: 1, maximum: 100, example: 20}
+        offset: {type: integer, minimum: 0, example: 0}
+    CopyPage:
+      type: object
+      required: [items, total, limit, offset]
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/BookCopy'
+        total: {type: integer, minimum: 0, example: 2}
+        limit: {type: integer, minimum: 1, maximum: 100, example: 20}
+        offset: {type: integer, minimum: 0, example: 0}
+    ReaderCreate:
+      type: object
+      additionalProperties: false
+      required: [fullName, birthDate, ticketBarcode]
+      properties:
+        fullName: {type: string, minLength: 1, maxLength: 200, pattern: '\S', example: Иван Петров}
+        birthDate: {type: string, format: date, description: Корректная дата не позднее текущей даты, example: '2005-04-12'}
+        ticketBarcode: {type: string, minLength: 1, maxLength: 64, pattern: '^[A-Za-z0-9-]+$', example: READER-000123}
+        interests: {type: string, maxLength: 2000, default: '', example: Космос и научная фантастика}
+    Reader:
+      type: object
+      required: [id, fullName, birthDate, ticketBarcode, interests]
+      description: Карточка читателя. Возраст вычисляется, а не хранится
+      properties:
+        id: {type: integer, minimum: 1, example: 15}
+        fullName: {type: string, example: Иван Петров}
+        birthDate: {type: string, format: date, example: '2005-04-12'}
+        ticketBarcode: {type: string, example: READER-000123}
+        interests: {type: string, example: Космос и научная фантастика}
+    StaffCreate:
+      type: object
+      additionalProperties: false
+      required: [fullName, role]
+      properties:
+        fullName: {type: string, minLength: 1, maxLength: 200, pattern: '\S', example: Анна Смирнова}
+        role: {type: string, enum: [admin, librarian], example: librarian}
+    StaffMember:
+      type: object
+      required: [id, fullName, role]
+      description: Общие поля сотрудника — ID, ФИО и роль. Пароль не хранится в этом объекте
+      properties:
+        id: {type: integer, minimum: 1, example: 7}
+        fullName: {type: string, example: Анна Смирнова}
+        role: {type: string, enum: [admin, librarian]}
+    Administrator:
+      description: Администратор ведет каталог, читателей и карточки сотрудников
+      allOf:
+        - $ref: '#/components/schemas/StaffMember'
+        - type: object
+          properties:
+            role: {type: string, enum: [admin]}
+    Librarian:
+      description: Библиотекарь смотрит экземпляры и оформляет выдачу и возврат. Ручки выдачи и возврата пока не описаны
+      allOf:
+        - $ref: '#/components/schemas/StaffMember'
+        - type: object
+          properties:
+            role: {type: string, enum: [librarian]}
+    RecommendationRequest:
+      type: object
+      additionalProperties: false
+      required: [interests]
+      properties:
+        interests:
+          type: string
+          minLength: 1
+          maxLength: 2000
+          pattern: '\S'
+          description: Текст интересов. Не может быть пустым или состоять только из пробелов
+          example: Космос, путешествия и научная фантастика
+    Recommendation:
+      type: object
+      required: [book, editionId, score, position]
+      properties:
+        book:
+          $ref: '#/components/schemas/Book'
+        editionId: {type: integer, minimum: 1, example: 101}
+        score:
+          type: number
+          format: float
+          minimum: 0
+          exclusiveMinimum: true
+          maximum: 1
+          description: Насколько описание книги похоже на интересы. Не вероятность того, что книга понравится
+          example: 0.82
+        position: {type: integer, minimum: 1, maximum: 5, example: 1}
+    RecommendationResult:
+      type: object
+      required: [reason, recommendations]
+      description: |
+        matched — от 1 до 5 книг; no_candidates — нет доступных по возрасту экземпляров;
+        no_matches — нет положительных оценок. В последних двух случаях массив пуст.
+      properties:
+        reason: {type: string, enum: [matched, no_candidates, no_matches]}
+        recommendations:
+          type: array
+          maxItems: 5
+          items:
+            $ref: '#/components/schemas/Recommendation'
+  responses:
+    BadRequest:
+      description: Некорректный JSON, параметры, обязательные поля или дата рождения читателя
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+          examples:
+            invalidRequest:
+              value: {code: INVALID_REQUEST, message: Проверьте обязательные поля и параметры запроса}
+            invalidBirthDate:
+              value: {code: INVALID_BIRTH_DATE, message: Дата рождения отсутствует или некорректна}
+    Unauthorized:
+      description: Bearer-токен отсутствует, истек или недействителен
+      headers:
+        WWW-Authenticate:
+          description: Указывает, что для входа нужен bearer-токен
+          schema: {type: string, example: Bearer}
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+          example: {code: UNAUTHORIZED, message: Требуется действительный bearer-токен}
+    Forbidden:
+      description: Пользователь вошел в систему, но у него нет прав на эту ручку
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+          example: {code: FORBIDDEN, message: Недостаточно прав для этой операции}
+    BookNotFound:
+      description: Книги нет или она скрыта от читателя из-за возраста или отсутствия экземпляров в наличии
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+          example: {code: BOOK_NOT_FOUND, message: Книга не найдена или недоступна читателю}
+    CatalogUnavailable:
+      description: Каталог временно недоступен
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+          example: {code: CATALOG_UNAVAILABLE, message: Каталог временно недоступен}
+    MlUnavailable:
+      description: ML-модуль не готов, недоступен или не ответил на проверку за 5 секунд
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+          examples:
+            unavailable:
+              value: {code: ML_UNAVAILABLE, message: Модель рекомендаций временно недоступна}
+            timeout:
+              value: {code: ML_TIMEOUT, message: Модель не ответила за 5 секунд}
+    InternalError:
+      description: Неожиданная ошибка сервера
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+          example: {code: INTERNAL_ERROR, message: Внутренняя ошибка сервиса}

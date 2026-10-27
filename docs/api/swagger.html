@@ -1,0 +1,37 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>АС «УВК» — Swagger UI</title>
+  <link rel="stylesheet" href="../assets/vendor/swagger-ui.css">
+  <style>
+    body { margin: 0; background: #fafafa; }
+    .api-nav { padding: 16px 24px; font: 16px system-ui, sans-serif; background: #fff; border-bottom: 1px solid #ddd; }
+    .api-nav a { color: #3b4151; margin-right: 24px; }
+    .api-nav p { margin: 10px 0 0; font-size: 14px; }
+  </style>
+</head>
+<body>
+  <header class="api-nav">
+    <a href="./">← Описание API</a>
+    <a href="openapi.yaml">Спецификация OpenAPI 3.0.3</a>
+    <p>Учебная документация: реального сервера нет, отправка запросов отключена.</p>
+  </header>
+  <div id="swagger-ui"></div>
+  <script src="../assets/vendor/swagger-ui-bundle.js"></script>
+  <script>
+    window.ui = SwaggerUIBundle({
+      url: 'openapi.yaml',
+      dom_id: '#swagger-ui',
+      deepLinking: true,
+      validatorUrl: null,
+      supportedSubmitMethods: [],
+      displayRequestDuration: false,
+      defaultModelsExpandDepth: 1,
+      presets: [SwaggerUIBundle.presets.apis],
+      layout: 'BaseLayout'
+    });
+  </script>
+</body>
+</html>

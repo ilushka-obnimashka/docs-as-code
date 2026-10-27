@@ -23,6 +23,7 @@ nav:
       - Описание: project/overview.md
       - Требования: project/requirements.md
       - Диаграммы: project/diagrams.md
+  - API: api/index.md
 plugins:
   - search:
       lang: ru
@@ -42,4 +43,4 @@ extra_javascript:
   - assets/javascripts/diagrams.js
 extra:
   generator: false
-copyright: Основы технического документирования · Практикумы 1–2
+copyright: Основы технического документирования · Практикумы 1–3
