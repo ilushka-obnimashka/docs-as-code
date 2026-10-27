@@ -24,6 +24,10 @@ nav:
       - Требования: project/requirements.md
       - Диаграммы: project/diagrams.md
   - API: api/index.md
+  - ML-модель:
+      - Model Card: ml/model-card.md
+      - Data Sheet: ml/dataset.md
+      - Риски и ограничения: ml/risks.md
 plugins:
   - search:
       lang: ru
@@ -43,4 +47,4 @@ extra_javascript:
   - assets/javascripts/diagrams.js
 extra:
   generator: false
-copyright: Основы технического документирования · Практикумы 1–3
+copyright: Основы технического документирования · Практикумы 1–4
